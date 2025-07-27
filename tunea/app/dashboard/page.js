@@ -1,15 +1,36 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import VideoCard from "../components/VideoCard";
 
 export default function Dashboard() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
+  const [recentlyPlayed, setRecentlyPlayed] = useState([]);
 
   const handleLogOut = (e) => {
     router.push("/");
-  }
+  };
+
+  const handleSearch = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (!searchQuery.trim()) return; // prevent empty searches
+      console.log("Searching for:", searchQuery);
+      router.push("/search?q=" + encodeURIComponent(searchQuery));
+      setSearchQuery("");
+    }
+  };
+
+  useEffect(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem("recentlyPlayed") || "[]");
+      setRecentlyPlayed(stored);
+    } catch (err) {
+      console.error("Failed to load recently played:", err);
+    }
+  }, []);
 
   return (
     <div
@@ -22,8 +43,10 @@ export default function Dashboard() {
       {/* Header */}
       <div className="fixed top-0 left-0 right-0 z-20 px-8 py-6 flex justify-between items-center backdrop-blur-md bg-[#181c2b]/70 shadow-lg rounded-b-xl">
         <div className="text-[32px] font-bold text-[#60aaff]">Tunea</div>
-        <button onClick={handleLogOut}
-        className="bg-[#ff6b6b] text-white px-5 py-2 rounded-full hover:bg-[#e55050] shadow transition-colors duration-200">
+        <button
+          onClick={handleLogOut}
+          className="bg-[#ff6b6b] text-white px-5 py-2 rounded-full hover:bg-[#e55050] shadow transition-colors duration-200"
+        >
           Log Out
         </button>
       </div>
@@ -35,6 +58,7 @@ export default function Dashboard() {
             placeholder="Search for songs, artists..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={handleSearch}
             className="w-full max-w-xl px-5 py-3 rounded-xl border border-gray-700 bg-[#23243a]/80 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#60aaff] shadow"
           />
         </div>
@@ -67,24 +91,22 @@ export default function Dashboard() {
           <h2 className="text-2xl font-bold text-[#e0e0e0] mb-6 text-center">
             Recently Played
           </h2>
-          <div className="flex gap-6 overflow-visible pb-2">
-            {[...Array(5)].map((_, i) => (
-              <div
-                key={i}
-                className="min-w-[220px] bg-[#181c2b]/80 backdrop-blur p-5 rounded-2xl shadow-lg hover:shadow-xl hover:-translate-y-2 transition-all duration-200"
-              >
-                <div className="h-32 bg-gradient-to-br from-[#23243a]/80 to-[#302b63]/60 rounded-xl mb-3 flex items-center justify-center">
-                  <span className="text-[#60aaff] text-3xl font-bold opacity-30">
-                    🎶
-                  </span>
+          {recentlyPlayed.length === 0 ? (
+            <p className="text-center text-gray-400">
+              No recently played tracks
+            </p>
+          ) : (
+            <div className="flex gap-6 overflow-visible pb-2">
+              {recentlyPlayed.slice(0, 4).map((video, i) => (
+                <div
+                  key={`${video.id}-${i}`}
+                  className="min-w-[320px] max-w-[360px]"
+                >
+                  <VideoCard video={video} />
                 </div>
-                <h3 className="text-md font-bold text-white mb-1">
-                  Track Name
-                </h3>
-                <p className="text-sm text-[#e0e0e0]">Artist</p>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </section>
       </div>
     </div>
