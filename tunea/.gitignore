@@ -39,3 +39,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+similarity_matrix.json
+artist_list.json
+data.csv
+SpotifyFeatures.csv
