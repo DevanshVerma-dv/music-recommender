@@ -43,7 +43,7 @@ def recommend():
     track_nm = request.args.get('track_nm')
     artist_nm = request.args.get('artist_nm')
     recommendations = recommend_songs(track_nm, artist_nm, original_data)
-    return jsonify(recommendations.to_dict(orient='records'))
+    return jsonify(recommendations.to_dict(orient='records'))   # Convert DataFrame to list of dicts for JSON response
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

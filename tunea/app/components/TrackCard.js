@@ -1,4 +1,3 @@
-// app/components/TrackCard.js
 "use client";
 
 import Image from 'next/image';
@@ -9,18 +8,18 @@ const TrackCard = ({ track, onTrackClick }) => {
     const artistName = track.artists?.map?.(artist => artist.name).join(', ') || track.Artist || 'Unknown Artist';
 
     const handleClick = () => {
-      // Add to Recently Played
+      // add to Recently Played
       const recentlyPlayed = JSON.parse(localStorage.getItem('recentlyPlayed') || '[]');
       const newRecentlyPlayed = [track, ...recentlyPlayed.filter(t => t.id !== track.id)].slice(0, 5);
       localStorage.setItem('recentlyPlayed', JSON.stringify(newRecentlyPlayed));
       
-      // Open Spotify link
+      // open Spotify link
       const spotifyUrl = track.external_urls?.spotify;
       if (spotifyUrl) {
         window.open(spotifyUrl, '_blank');
       }
       
-      // Trigger new recommendations
+      // trigger new recommendations
       if (onTrackClick) {
         onTrackClick(track.id || `${track.Artist}-${track.Track}`);
       }
