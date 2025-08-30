@@ -24,11 +24,3 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
-
-:root {
-  --plyr-color-main: #60aaff;
-  --plyr-control-toggle-checked-background: var(--plyr-color-main);
-  --plyr-progress-buffered-background: rgba(var(--plyr-color-main-rgb), 0.5);
-  --plyr-range-track-background: rgba(var(--plyr-color-main-rgb), 0.2);
-  --plyr-range-fill-background: var(--plyr-color-main);
-}

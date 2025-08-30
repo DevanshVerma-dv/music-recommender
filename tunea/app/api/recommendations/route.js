@@ -1,103 +1,143 @@
-import { NextResponse } from "next/server";
-import fs from "fs";
-import path from "path";
+"use client";
 
-// --- Load Model Data ---
-// This function now only needs to load the artist list.
-// The similarity vectors will be loaded on-demand.
-const loadModelData = () => {
-  try {
-    console.log("Attempting to load artist list...");
-    const artistsPath = path.join(process.cwd(), "public", "artist_list.json");
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import TrackCard from "../components/TrackCard";
 
-    if (!fs.existsSync(artistsPath)) {
-      throw new Error(`Artist list not found at path: ${artistsPath}`);
+export default function Dashboard() {
+  const router = useRouter();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [recentlyPlayed, setRecentlyPlayed] = useState([]);
+  const [recommendations, setRecommendations] = useState([]);
+  const [loadingRecs, setLoadingRecs] = useState(false);
+
+  useEffect(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem("recentlyPlayed") || "[]");
+      setRecentlyPlayed(stored);
+    } catch (err) {
+      console.error("Failed to load recently played:", err);
     }
+  }, []);
 
-    const artists = JSON.parse(fs.readFileSync(artistsPath, "utf-8"));
-    const artistIndexMap = new Map(artists.map((name, index) => [name, index]));
+  const handleLogOut = () => {
+    router.push("/");
+  };
 
-    console.log(`Artist list loaded successfully with ${artists.length} artists.`);
-    return { artists, artistIndexMap };
-  } catch (error) {
-    console.error("CRITICAL: Failed to load artist list.", error.message);
-    return { artists: null, artistIndexMap: null };
-  }
-};
+  const handleSearch = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (!searchQuery.trim()) return;
+      router.push("/search?q=" + encodeURIComponent(searchQuery));
+      setSearchQuery("");
+    }
+  };
 
-const { artists, artistIndexMap } = loadModelData();
+  const getRecommendations = async (trackId) => {
+    setLoadingRecs(true);
+    setRecommendations([]); // Clear old recommendations
+    try {
+      const res = await fetch("/api/recommendations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ trackId }),
+      });
 
-// --- Recommendation Logic (Updated for Chunking) ---
-const getSimilarArtists = (inputArtists, topN = 6) => {
-  if (!artists || !artistIndexMap) {
-    return []; // Return empty if model data isn't loaded
-  }
+      const data = await res.json();
 
-  const artistScores = new Map();
-  const vectorsDir = path.join(process.cwd(), "public", "similarity_vectors");
-
-  for (const artistName of inputArtists) {
-    const idx = artistIndexMap.get(artistName);
-    
-    if (idx !== undefined) {
-      try {
-        // Construct the path to the specific vector file for this artist
-        const vectorPath = path.join(vectorsDir, `${idx}.json`);
-        
-        // Read only the small file for this one artist
-        const simScores = JSON.parse(fs.readFileSync(vectorPath, "utf-8"));
-        
-        // Aggregate scores (same logic as before)
-        simScores.forEach((score, otherArtistIndex) => {
-          const otherArtistName = artists[otherArtistIndex];
-          const currentScore = artistScores.get(otherArtistName) || 0;
-          artistScores.set(otherArtistName, currentScore + score);
-        });
-      } catch (e) {
-        // This might happen if a vector file is missing
-        console.warn(`Could not load similarity vector for artist: ${artistName} (index: ${idx})`);
+      if (Array.isArray(data)) {
+        setRecommendations(data);
+      } else {
+        console.error("Error from recommendations API:", data.error);
+        setRecommendations([]);
       }
+    } catch (error) {
+      console.error("Dashboard: Failed to fetch recommendations:", error);
+      setRecommendations([]);
+    } finally {
+      setLoadingRecs(false);
     }
-  }
+  };
 
-  inputArtists.forEach(name => artistScores.delete(name));
-  
-  const sortedArtists = [...artistScores.entries()].sort((a, b) => b[1] - a[1]);
-  
-  return sortedArtists.slice(0, topN).map(entry => entry[0]);
-};
+  return (
+    <div
+      className="min-h-screen px-6 sm:px-12 py-10 relative"
+      style={{
+        background:
+          "linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%)",
+      }}
+    >
+      {/* Header */}
+      <div className="fixed top-0 left-0 right-0 z-20 px-8 py-6 flex justify-between items-center backdrop-blur-md bg-[#181c2b]/70 shadow-lg rounded-b-xl">
+        <div className="text-[32px] font-bold text-[#60aaff]">Tunea</div>
+        <button
+          onClick={handleLogOut}
+          className="bg-[#ff6b6b] text-white px-5 py-2 rounded-full hover:bg-[#e55050] shadow transition-colors duration-200"
+        >
+          Log Out
+        </button>
+      </div>
+      <div className="pt-32">
+        {/* Search Bar */}
+        <div className="mb-12 flex justify-center">
+          <input
+            type="text"
+            placeholder="Search for songs..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={handleSearch}
+            className="w-full max-w-xl px-5 py-3 rounded-xl border border-gray-700 bg-[#23243a]/80 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#60aaff] shadow"
+          />
+        </div>
 
-// --- API Handler (No changes needed here) ---
-export async function POST(req) {
-  if (!artists) {
-    return NextResponse.json(
-      { error: "Recommendation model is not available. Check server logs." },
-      { status: 500 }
-    );
-  }
+        {/* Recently Played */}
+        <section className="mb-12">
+          <h2 className="text-2xl font-bold text-[#e0e0e0] mb-6 text-center">
+            Recently Played
+          </h2>
+          {recentlyPlayed.length === 0 ? (
+            <p className="text-center text-gray-400">
+              Click a song from search to get started!
+            </p>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+              {recentlyPlayed.map((track) => (
+                <TrackCard
+                  key={track.id}
+                  track={track}
+                  onTrackClick={getRecommendations}
+                />
+              ))}
+            </div>
+          )}
+        </section>
 
-  try {
-    const { recentlyPlayedArtists } = await req.json();
-
-    if (!recentlyPlayedArtists) {
-      return NextResponse.json({ error: "Missing 'recentlyPlayedArtists' in request body." }, { status: 400 });
-    }
-
-    if (recentlyPlayedArtists.length === 0) {
-      return NextResponse.json(
-        { recommendations: ["Daft Punk", "The Beatles", "Queen", "Led Zeppelin", "Michael Jackson", "Taylor Swift"] }
-      );
-    }
-    
-    const recommendedArtists = getSimilarArtists(recentlyPlayedArtists);
-    
-    return NextResponse.json({ recommendations: recommendedArtists });
-
-  } catch (error) {
-    console.error("Recommendation API error:", error);
-    return NextResponse.json(
-      { error: "An error occurred while fetching recommendations." },
-      { status: 500 }
-    );
-  }
+        {/* Recommended section */}
+        <section>
+          <h2 className="text-2xl font-bold text-[#e0e0e0] mb-6 text-center">
+            Recommended for You
+          </h2>
+          {Array.isArray(recommendations) && recommendations.length > 0 ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+              {recommendations.map((track) => (
+                <TrackCard
+                  key={track.id || `${track.Artist}-${track.Track}`}
+                  track={track}
+                  onTrackClick={getRecommendations}
+                />
+              ))}
+            </div>
+          ) : loadingRecs ? (
+            <p className="text-center text-gray-400">
+              Getting recommendations...
+            </p>
+          ) : (
+            <p className="text-center text-gray-400">
+              Click a song to get recommendations.
+            </p>
+          )}
+        </section>
+      </div>
+    </div>
+  );
 }

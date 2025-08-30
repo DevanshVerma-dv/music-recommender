@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import VideoCard from "../components/VideoCard";
+import TrackCard from "../components/TrackCard";
 
 export default function SearchPage() {
   const searchParams = useSearchParams();
@@ -13,11 +13,15 @@ export default function SearchPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!query) return;
+    if (!query) {
+      setLoading(false);
+      return;
+    }
 
     const fetchResults = async () => {
+      setLoading(true);
       try {
-        const res = await fetch("/api/search?q=" + encodeURIComponent(query));
+        const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
         const data = await res.json();
         setRes(data || []);
       } catch (err) {
@@ -52,13 +56,13 @@ export default function SearchPage() {
         <h1 className="text-3xl font-bold mb-8">Search Results:</h1>
 
         {loading ? (
-          <p>Loading...</p>
+          <p className="text-center text-gray-400">Loading...</p>
         ) : res.length === 0 ? (
-          <p>No results found.</p>
+          <p className="text-center text-gray-400">No results found.</p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {res.map((video) => (
-              <VideoCard key={`${video.id}-${video.title}`} video={video} />
+            {res.map((track) => (
+              <TrackCard key={track.id} track={track} />
             ))}
           </div>
         )}
